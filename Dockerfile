@@ -1,3 +1,4 @@
+```dockerfile
 # Dockerfile for Berxel P100R Person Detection
 # 适配AMD 780M核显，使用ONNXRuntime + OpenVINO优化
 # 基于Ubuntu 22.04
@@ -42,6 +43,11 @@ RUN apt-get update && apt-get install -y \
     libx11-dev \
     libxext-dev \
     x11-apps \
+    # OpenCL / ICD (用于 GPU / iGPU 支持，针对 AMD iGPU)
+    ocl-icd-libopencl1 \
+    ocl-icd-opencl-dev \
+    mesa-opencl-icd \
+    opencl-headers \
     && rm -rf /var/lib/apt/lists/*
 
 # 升级pip
@@ -51,10 +57,13 @@ RUN python3 -m pip install --upgrade pip setuptools wheel
 COPY requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
 
-# 安装ONNXRuntime-OpenVINO（AMD 780M优化）
-# 注意: 根据OpenVINO版本选择合适的onnxruntime-openvino版本
-RUN pip3 install --no-cache-dir onnxruntime-openvino || \
-    echo "警告: onnxruntime-openvino安装失败，将使用CPU执行提供器"
+# 安装 OpenVINO 运行时与 ONNXRuntime-OpenVINO（优先尝试安装，失败则回退到 CPU）
+# 说明：针对 AMD iGPU，本镜像尝试安装常见的 OpenCL/ICD 软件包并通过 pip 安装 OpenVINO Python 运行时。
+RUN set -eux; \
+    pip3 install --no-cache-dir openvino openvino-dev || echo "警告: openvino pip 包安装失败"; \
+    # 安装与 openvino 匹配的 onnxruntime / onnxruntime-openvino（如 wheel 可用）
+    pip3 install --no-cache-dir onnxruntime==1.22.0 onnxruntime-openvino==1.22.0 || \
+    (echo "警告: onnxruntime-openvino 安装失败，容器将回退到 CPUExecutionProvider" && true)
 
 # 复制项目文件
 COPY . /workspace/
@@ -92,3 +101,5 @@ CMD ["person_detect.py", "--help"]
 #   --env="DISPLAY=$DISPLAY"        - 传递显示环境变量
 #   --volume="/tmp/.X11-unix:..."   - 映射X11 socket（用于显示窗口）
 #   --volume="$PWD:/workspace"      - 映射当前目录（可选，用于开发）
+
+```
