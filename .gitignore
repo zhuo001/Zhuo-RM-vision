@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Virtual Environment
+venv/
+env/
+ENV/
+yolov8_env/
+
+# ROS2
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# YOLO
+yolov8n.pt
+runs/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Berxel SDK
+berxel-sdk-master/
+
+# Compiled files
+*.o
+*.a
+build/
