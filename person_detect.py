@@ -4,6 +4,33 @@ import numpy as np
 
 from berxel_camera import BerxelCamera
 
+# 在启动时打印环境信息（方便诊断 OpenVINO / ONNXRuntime 可用性）
+def _print_runtime_env():
+    try:
+        import onnxruntime as ort
+        print('onnxruntime version:', ort.__version__)
+        print('Available providers:', ort.get_available_providers())
+    except Exception as e:
+        print('onnxruntime not fully available:', e)
+
+    try:
+        import openvino as ov
+        print('openvino version:', ov.__version__)
+    except Exception as e:
+        print('openvino not available:', e)
+
+    # OpenCL ICD
+    import os
+    vendors_dir = '/etc/OpenCL/vendors'
+    if os.path.isdir(vendors_dir):
+        print('/etc/OpenCL/vendors:', os.listdir(vendors_dir))
+    else:
+        print('/etc/OpenCL/vendors not found')
+
+
+# 打印一次环境信息
+_print_runtime_env()
+
 def initialize_camera():
     try:
         # 初始化Berxel相机
@@ -80,7 +107,7 @@ def get_depth_at_point(depth_map, x, y, window_size=5):
     Args:
         depth_map: 深度图（已缩放到彩色图尺寸）
         x, y: 中心点坐标
-        window_size: 采样窗口大小（默认5x5）
+        window_size: 采样窗口大小（默认5x5)
     
     Returns:
         深度值（毫米），如果无效则返回 None
@@ -115,6 +142,7 @@ def get_depth_at_point(depth_map, x, y, window_size=5):
         return None
     
     return float(depth_value)
+
 
 def main():
     cap = None
