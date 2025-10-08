@@ -1,0 +1,47 @@
+# Berxel P100R 人体检测与深度测距系统
+# 依赖包列表
+
+# ===== 核心依赖 =====
+# YOLOv8 目标检测
+ultralytics>=8.0.0
+
+# 图像处理
+opencv-python>=4.8.0
+numpy>=1.21.0,<2.0  # ROS2 cv_bridge要求 <2.0
+
+# ===== ONNX推理引擎（可选，用于模型优化） =====
+# 基础ONNX支持
+onnx>=1.15.0
+onnxruntime>=1.16.0  # CPU推理
+
+# AMD优化（推荐用于AMD 780M）
+# onnxruntime-openvino>=1.16.0  # OpenVINO执行提供器，需单独安装
+
+# ===== ROS2依赖（仅用于ros2_ws） =====
+# 已由ROS2环境提供，无需pip安装:
+# - rclpy
+# - sensor_msgs
+# - cv_bridge
+
+# ===== 开发依赖（可选） =====
+# lap>=0.4.0  # ByteTrack跟踪算法需要（ROS2节点需要）
+# scipy>=1.10.0  # ByteTrack依赖
+
+# ===== 说明 =====
+# 1. 基础检测功能只需要: ultralytics, opencv-python, numpy
+# 2. ONNX优化需要: onnx, onnxruntime
+# 3. AMD 780M优化需要额外安装:
+#    pip install onnxruntime-openvino
+#    或者使用OpenVINO官方工具链
+# 4. ROS2节点需要lap和scipy（如果使用ByteTrack跟踪）
+
+# ===== 安装命令 =====
+# 基础安装（PyTorch推理）:
+#   pip install ultralytics opencv-python numpy
+#
+# 完整安装（包含ONNX支持）:
+#   pip install -r requirements.txt
+#
+# AMD 780M优化（安装OpenVINO支持）:
+#   pip install -r requirements.txt
+#   pip install onnxruntime-openvino

@@ -1,0 +1,112 @@
+# Docker Compose配置文件
+# 用于简化Berxel P100R人体检测系统的Docker部署
+
+version: '3.8'
+
+services:
+  # AMD版本（使用ONNXRuntime + OpenVINO）
+  person-detector-amd:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: person-detector:amd
+    container_name: person-detector-amd
+    privileged: false
+    devices:
+      - /dev/bus/usb:/dev/bus/usb  # USB相机访问
+    environment:
+      - DISPLAY=${DISPLAY}  # X11显示
+      - TZ=Asia/Shanghai
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw  # X11 socket
+      - .:/workspace  # 映射项目目录
+    network_mode: host
+    command: ["person_detect.py", "--engine", "onnx-openvino", "--benchmark"]
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+  # NVIDIA版本（使用PyTorch/TensorRT，仅供参考）
+  person-detector-nvidia:
+    build:
+      context: .
+      dockerfile: Dockerfile.nvidia
+    image: person-detector:nvidia
+    container_name: person-detector-nvidia
+    privileged: false
+    runtime: nvidia  # 需要nvidia-container-runtime
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+    environment:
+      - DISPLAY=${DISPLAY}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
+      - TZ=Asia/Shanghai
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - .:/workspace
+    network_mode: host
+    command: ["person_detect.py", "--engine", "pytorch", "--benchmark"]
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+# ===== 使用说明 =====
+#
+# 前提条件:
+#   1. 安装Docker和Docker Compose
+#   2. AMD版本: 无特殊要求
+#   3. NVIDIA版本: 需要安装nvidia-container-toolkit
+#
+# 允许X11显示（首次运行前执行一次）:
+#   xhost +local:docker
+#
+# 使用AMD版本（推荐用于AMD 780M）:
+#   # 构建并启动
+#   docker-compose up person-detector-amd
+#
+#   # 后台运行
+#   docker-compose up -d person-detector-amd
+#
+#   # 查看日志
+#   docker-compose logs -f person-detector-amd
+#
+#   # 停止
+#   docker-compose down
+#
+# 使用NVIDIA版本（仅供NVIDIA GPU用户参考）:
+#   docker-compose up person-detector-nvidia
+#
+# 自定义命令:
+#   # 使用PyTorch引擎
+#   docker-compose run --rm person-detector-amd \
+#     python3 person_detect.py --engine pytorch --benchmark
+#
+#   # 导出ONNX模型
+#   docker-compose run --rm person-detector-amd \
+#     python3 tools/export_to_onnx.py --model yolov8n.pt --fp16
+#
+#   # 交互式shell
+#   docker-compose run --rm person-detector-amd bash
+#
+# 开发模式（实时代码修改）:
+#   # 由于已映射项目目录，容器内修改会同步到宿主机
+#   docker-compose run --rm person-detector-amd bash
+#   # 在容器内编辑代码并测试
+#
+# 故障排除:
+#   1. "Cannot connect to X server"
+#      解决: xhost +local:docker
+#   
+#   2. "Cannot open camera"
+#      解决: 检查USB设备连接，确保--device映射正确
+#   
+#   3. "OpenVINO不可用"
+#      解决: 容器会自动回退到CPU执行提供器
+#
+# 清理:
+#   # 停止并删除容器
+#   docker-compose down
+#   
+#   # 删除镜像
+#   docker rmi person-detector:amd person-detector:nvidia
