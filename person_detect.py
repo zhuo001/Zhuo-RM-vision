@@ -24,40 +24,42 @@ model.iou = 0.45   # NMS IOU阈值
 model.max_det = 50 # 最大检测数量
 model.classes = [0]  # 只检测人类类别
 
-def is_valid_person(box, confidence):
+def is_valid_person(box, confidence, frame_height, frame_width):
     """检查检测框是否符合人形特征"""
     x1, y1, x2, y2 = box
     width = x2 - x1
     height = y2 - y1
     
-    if width == 0 or height == 0:
+    if width <= 0 or height <= 0:
         return False
     
     # 计算宽高比
     aspect_ratio = height / width
     
-    # 人的宽高比限制（更严格）
-    MIN_ASPECT_RATIO = 1.8  # 提高最小宽高比
-    MAX_ASPECT_RATIO = 3.5  # 降低最大宽高比
+    # 人的宽高比限制（站立的人一般在 1.5-3.5 之间）
+    MIN_ASPECT_RATIO = 1.3  # 降低最小值，允许坐姿
+    MAX_ASPECT_RATIO = 4.0  # 提高最大值，允许更瘦长
     
-    # 检查宽高比
     if aspect_ratio < MIN_ASPECT_RATIO or aspect_ratio > MAX_ASPECT_RATIO:
         return False
     
-    # 面积限制
+    # 面积限制（相对于图像尺寸）
     area = width * height
-    MIN_AREA = 10000  # 最小面积（像素）
-    MAX_AREA = 300000  # 最大面积（像素）
-    if area < MIN_AREA or area > MAX_AREA:
+    frame_area = frame_height * frame_width
+    area_ratio = area / frame_area
+    
+    # 检测框不能太小（< 1%画面）或太大（> 80%画面）
+    if area_ratio < 0.01 or area_ratio > 0.8:
+        return False
+    
+    # 宽度和高度的绝对限制（1920x1080 分辨率下）
+    if width < 80 or height < 150:  # 太小
+        return False
+    if width > 1500 or height > 1000:  # 太大
         return False
         
-    # 位置检查（避免检测框过于靠近图像边缘）
-    EDGE_MARGIN = 10  # 边缘余量（像素）
-    if x1 < EDGE_MARGIN or y1 < EDGE_MARGIN:
-        return False
-        
-    # 置信度阈值（动态调整）
-    if confidence < 0.65:  # 提高置信度要求
+    # 置信度阈值
+    if confidence < 0.50:  # 降低阈值，避免漏检
         return False
     
     return True
@@ -85,12 +87,16 @@ def main():
             display[:, :w] = frame
             
             # 如果有深度图，处理并显示在右侧
+            depth_resized = None
             if depth is not None:
+                # P100R 深度图是 640x400，需要缩放到彩色图尺寸 1920x1080
+                depth_resized = cv2.resize(depth, (w, h), interpolation=cv2.INTER_NEAREST)
+                
                 # 将深度值映射到 0-255 范围的伪彩色
-                depth_min = np.min(depth)
-                depth_max = np.max(depth)
+                depth_min = np.min(depth_resized)
+                depth_max = np.max(depth_resized)
                 if depth_max > depth_min:
-                    depth_norm = ((depth - depth_min) * 255 / (depth_max - depth_min)).astype(np.uint8)
+                    depth_norm = ((depth_resized - depth_min) * 255 / (depth_max - depth_min)).astype(np.uint8)
                     depth_color = cv2.applyColorMap(depth_norm, cv2.COLORMAP_JET)
                     display[:, w:] = depth_color
 
@@ -111,22 +117,27 @@ def main():
                             confidence = float(box.conf)
                             
                             # 检查是否是有效的人形检测
-                            if not is_valid_person((x1, y1, x2, y2), confidence):
+                            if not is_valid_person((x1, y1, x2, y2), confidence, h, w):
                                 continue
                             
                             # 计算中心点坐标
                             center_x = int((x1 + x2) / 2)
                             center_y = int((y1 + y2) / 2)
                             
-                            # 获取深度值
+                            # 获取深度值（使用缩放后的深度图）
                             depth_value = None
-                            if depth is not None:
-                                depth_value = depth[center_y, center_x]
+                            if depth_resized is not None and 0 <= center_y < h and 0 <= center_x < w:
+                                depth_value = depth_resized[center_y, center_x]
+                                # P100R 深度值为0表示无效
+                                if depth_value == 0:
+                                    depth_value = None
                             
                             # 准备标签文本
                             label = f"Person {confidence:.2f}"
-                            if depth_value is not None:
+                            if depth_value is not None and depth_value > 0:
                                 label += f" {depth_value/1000:.2f}m"
+                            else:
+                                label += " (no depth)"
                             
                             # 在左侧彩色图像中绘制
                             cv2.rectangle(display, (x1, y1), (x2, y2), (0, 255, 0), 2)

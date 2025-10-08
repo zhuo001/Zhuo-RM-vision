@@ -39,8 +39,8 @@ static PyObject* init_camera(PyObject* self, PyObject* args) {
         // 同步系统时间
         g_device->setSystemClock();
         
-        // 设置流模式
-        g_device->setStreamFlagMode(berxel::BERXEL_HAWK_SINGULAR_STREAM_FLAG_MODE);
+        // 设置流模式为并行模式（P100R 需要并行模式才能同时使用彩色和深度流）
+        g_device->setStreamFlagMode(berxel::BERXEL_HAWK_MIX_STREAM_FLAG_MODE);
         
         // 设置彩色图像模式
         berxel::BerxelHawkStreamFrameMode colorMode;
@@ -53,8 +53,19 @@ static PyObject* init_camera(PyObject* self, PyObject* args) {
             return nullptr;
         }
         
-        // 仅启动彩色图像流
-        if (g_device->startStreams(berxel::BERXEL_HAWK_COLOR_STREAM) != 0) {
+        // 设置深度图像模式
+        berxel::BerxelHawkStreamFrameMode depthMode;
+        g_device->getCurrentFrameMode(berxel::BERXEL_HAWK_DEPTH_STREAM, &depthMode);
+        depthMode.resolutionX = 640;
+        depthMode.resolutionY = 400;
+        depthMode.framerate = 30;
+        if (g_device->setFrameMode(berxel::BERXEL_HAWK_DEPTH_STREAM, &depthMode) != 0) {
+            PyErr_SetString(PyExc_RuntimeError, "Failed to set depth frame mode");
+            return nullptr;
+        }
+        
+        // 启动彩色和深度图像流
+        if (g_device->startStreams(berxel::BERXEL_HAWK_COLOR_STREAM | berxel::BERXEL_HAWK_DEPTH_STREAM) != 0) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to start streams");
             return nullptr;
         }
@@ -99,7 +110,7 @@ static PyObject* get_frame(PyObject* self, PyObject* args) {
 static PyObject* release_camera(PyObject* self, PyObject* args) {
     try {
         if (g_device) {
-            g_device->stopStreams(berxel::BERXEL_HAWK_COLOR_STREAM);
+            g_device->stopStreams(berxel::BERXEL_HAWK_COLOR_STREAM | berxel::BERXEL_HAWK_DEPTH_STREAM);
             g_context->closeDevice(g_device);
             g_device = nullptr;
         }
