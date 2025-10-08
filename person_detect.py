@@ -109,8 +109,9 @@ def get_depth_at_point(depth_map, x, y, window_size=5):
     # 使用中位数减少噪声影响
     depth_value = np.median(valid_depths)
     
-    # 合理性检查：P100R 有效范围通常是 300mm - 8000mm
-    if depth_value < 200 or depth_value > 10000:
+    # 合理性检查：P100R 深度转换系数是 1/17 mm
+    # 有效范围：5000-136000 (对应 0.3m - 8m)
+    if depth_value < 3000 or depth_value > 150000:
         return None
     
     return float(depth_value)
@@ -214,8 +215,8 @@ def main():
                             # 准备标签文本
                             label = f"Person {confidence:.2f}"
                             if depth_value is not None:
-                                # 深度单位是毫米，转换为米
-                                distance_m = depth_value / 1000.0
+                                # P100R 深度转换：原始值需要除以17得到毫米，再转换为米
+                                distance_m = depth_value / 17000.0
                                 label += f" {distance_m:.2f}m"
                             else:
                                 label += " (no depth)"
