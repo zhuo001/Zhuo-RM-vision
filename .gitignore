@@ -31,6 +31,29 @@ ros2_ws/log/
 yolov8n.pt
 runs/
 
+# Models and large binaries
+*.onnx
+*.engine
+*.plan
+*.blob
+*.xml
+*.bin
+
+# Backups & local artifacts
+*.bak
+*.log
+*.tmp
+*.lock
+*.out
+*.csv
+*.npy
+*.npz
+*.pkl
+
+# Scripts and local helpers
+test_amd780m.sh
+show_optimization.sh
+
 # System
 .DS_Store
 Thumbs.db
