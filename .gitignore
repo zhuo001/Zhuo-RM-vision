@@ -11,7 +11,9 @@ build/
 
 # Virtual Environment
 venv/
+.venv/
 env/
+.env/
 ENV/
 yolov8_env/
 
