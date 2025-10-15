@@ -1,0 +1,60 @@
+╔══════════════════════════════════════════════════════════════╗
+║           🚀 快速参考卡 - 随身携带                            ║
+╚══════════════════════════════════════════════════════════════╝
+
+【启动程序】
+  cd /home/zhuo-skadi/Documents/ros2-robt
+  ./run.sh
+
+【遇到问题】
+  ./portable_check.sh     # 诊断所有问题
+  ./run.sh                # 自动修复并运行
+
+【常见错误 5秒速查】
+┌────────────────────────────────────────────────────────────┐
+│ 错误码-6 (摄像头打开失败)                                    │
+│   → pkill -9 -f person_detect                              │
+│   → sudo chmod 666 /dev/bus/usb/001/005                    │
+│   → 或重新插拔USB                                           │
+├────────────────────────────────────────────────────────────┤
+│ libBerxelHawk.so not found                                 │
+│   → export LD_LIBRARY_PATH=$(pwd)/libs:$LD_LIBRARY_PATH   │
+│   → 或直接用 ./run.sh                                       │
+├────────────────────────────────────────────────────────────┤
+│ ModuleNotFoundError                                        │
+│   → pip install -r requirements.txt                        │
+│   → 不要用 sudo python3                                     │
+├────────────────────────────────────────────────────────────┤
+│ yolov8n.onnx not found                                     │
+│   → 确保在项目目录: cd ~/Documents/ros2-robt               │
+├────────────────────────────────────────────────────────────┤
+│ FPS 很低 (<15)                                             │
+│   → pip install onnxruntime-openvino                       │
+└────────────────────────────────────────────────────────────┘
+
+【新环境快速配置】
+  1. cd ros2-robt
+  2. pip install -r requirements.txt
+  3. ./portable_check.sh
+  4. ./run.sh
+
+【打包到其他机器】
+  tar -czf ros2-robt.tar.gz ros2-robt/
+  # 在新机器解压后运行 ./portable_check.sh
+
+【应急手动修复】
+  export LD_LIBRARY_PATH=$(pwd)/libs:$LD_LIBRARY_PATH
+  pkill -9 -f person_detect
+  lsusb | grep 0603  # 检查摄像头
+  sudo chmod 666 /dev/bus/usb/001/XXX  # XXX根据lsusb结果调整
+  python3 person_detect.py
+
+【获取帮助】
+  查看详细文档:
+    - PORTABLE_SOLUTION.md    (完整解决方案)
+    - TROUBLESHOOTING.md      (详细故障排查)
+    - QUICKSTART_OPTIMIZED.md (快速开始)
+
+═══════════════════════════════════════════════════════════════
+  记住：90%的问题 ./run.sh 都能解决！
+═══════════════════════════════════════════════════════════════
