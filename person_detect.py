@@ -80,6 +80,9 @@ YOLO_INPUT_SIZE = 416  # YOLO输入分辨率（从默认640降低到416以加速
 DISPLAY_SCALE = 0.5  # 显示窗口缩放比例（降低到50%以减少渲染负担）
 TARGET_FPS = 30  # 目标帧率
 DEPTH_PROCESS_INTERVAL = 3  # 每隔N帧处理一次深度图（深度图处理也很耗时）
+# 深度平滑与可视化参数
+DEPTH_EMA_ALPHA = 0.25  # EMA 平滑系数（0-1），越小平滑越强
+DEPTH_VIS_KEEP_FRAMES = 5  # 当跳帧不处理深度时，保留上一次深度可视化的帧数
 
 def is_valid_person(box, confidence, frame_height, frame_width):
     """
@@ -292,6 +295,15 @@ def main():
             
             # 如果有深度图，处理并显示在右侧（优化：降低处理频率）
             depth_resized = None
+            # 持久化和平滑相关变量（局部变量外提）
+            if 'last_depth_color' not in globals():
+                # 上一次用于显示的伪彩色图（用于未处理帧重用）
+                globals()['last_depth_color'] = None
+                globals()['last_depth_raw'] = None
+                globals()['ema_depth_min'] = None
+                globals()['ema_depth_max'] = None
+                globals()['last_depth_keep_counter'] = 0
+
             if depth is not None and depth.size > 0 and frame_count % DEPTH_PROCESS_INTERVAL == 0:
                 try:
                     # P100R 深度图是 640x400，需要缩放到彩色图尺寸 1920x1080
@@ -303,26 +315,59 @@ def main():
                     if len(valid_depth) > 0:
                         depth_min = np.percentile(valid_depth, 1)  # 使用1%分位数，避免极端值
                         depth_max = np.percentile(valid_depth, 99)  # 使用99%分位数
-                        
-                        if depth_max > depth_min:
+
+                        # EMA 平滑 min/max，避免每帧大幅变动导致色彩闪烁
+                        if globals()['ema_depth_min'] is None:
+                            globals()['ema_depth_min'] = float(depth_min)
+                        else:
+                            globals()['ema_depth_min'] = (DEPTH_EMA_ALPHA * float(depth_min)
+                                                           + (1 - DEPTH_EMA_ALPHA) * globals()['ema_depth_min'])
+
+                        if globals()['ema_depth_max'] is None:
+                            globals()['ema_depth_max'] = float(depth_max)
+                        else:
+                            globals()['ema_depth_max'] = (DEPTH_EMA_ALPHA * float(depth_max)
+                                                           + (1 - DEPTH_EMA_ALPHA) * globals()['ema_depth_max'])
+
+                        depth_min_s = globals()['ema_depth_min']
+                        depth_max_s = globals()['ema_depth_max']
+
+                        if depth_max_s > depth_min_s:
                             # 归一化深度图
-                            depth_norm = np.clip((depth_resized - depth_min) / (depth_max - depth_min), 0, 1)
+                            depth_norm = np.clip((depth_resized - depth_min_s) / (depth_max_s - depth_min_s), 0, 1)
                             depth_norm = (depth_norm * 255).astype(np.uint8)
-                            
+
                             # 应用伪彩色
                             depth_color = cv2.applyColorMap(depth_norm, cv2.COLORMAP_JET)
-                            
+
                             # 将无效区域（0值）显示为黑色
                             mask = depth_resized == 0
                             depth_color[mask] = [0, 0, 0]
-                            
+
                             display[:, w:] = depth_color
+
+                            # 更新持久化缓存
+                            globals()['last_depth_color'] = depth_color.copy()
+                            globals()['last_depth_raw'] = depth_resized.copy()
+                            globals()['last_depth_keep_counter'] = 0
                     else:
                         # 如果没有有效深度值，显示黑屏
                         display[:, w:] = 0
                         
                 except Exception as e:
                     print(f"深度图处理错误: {e}")
+                    display[:, w:] = 0
+            else:
+                # 未在本帧处理深度：如果存在上次的持久化深度并且未超时，则重用它以避免闪烁
+                last_color = globals().get('last_depth_color', None)
+                last_raw = globals().get('last_depth_raw', None)
+                if last_color is not None and globals().get('last_depth_keep_counter', 0) < DEPTH_VIS_KEEP_FRAMES:
+                    display[:, w:] = last_color
+                    globals()['last_depth_keep_counter'] += 1
+                    # 将 depth_resized 设为持久化的原始深度，供后续检测读取深度使用
+                    depth_resized = last_raw
+                else:
+                    # 没有可用缓存，就显示黑屏
                     display[:, w:] = 0
 
             # 性能优化：每隔N帧才进行一次YOLO检测
@@ -358,7 +403,8 @@ def main():
                         center_y = int((y1 + y2) / 2)
                         
                         # 获取深度值（使用改进的中位数方法）
-                        depth_value = get_depth_at_point(depth_resized, center_x, center_y, window_size=7)
+                        depth_source = depth_resized if depth_resized is not None else globals().get('last_depth_raw', None)
+                        depth_value = get_depth_at_point(depth_source, center_x, center_y, window_size=7)
                         
                         # 准备标签文本
                         label = f"Person {confidence:.2f}"
