@@ -1,38 +1,68 @@
 # Zhuo-RM
 
-ROS2机器人视觉项目 - 基于Berxel相机和YOLOv8的人形检测系统
+ROS2机器人视觉与导航项目 - 基于Berxel相机、YOLOv8检测与深度SLAM导航
 
-## 🎉 最新更新（2025-10-11）
+## 🎉 最新更新
 
-**✅ AMD 780M 优化完成！FPS 从 13 提升到 45-80（3.5-6倍提升）**
+### 2025-10-17: SLAM导航集成完成 ✨
+**✅ 深度SLAM障碍物检测与导航决策系统上线！**
+- ✅ 实时障碍物检测（348 FPS处理速度）
+- ✅ 可导航区域分析
+- ✅ 智能导航决策（forward/left/right/stop）
+- ✅ 双窗口可视化界面
+- ✅ ROS2集成准备就绪
+- 详见：[SLAM_INTEGRATION.md](SLAM_INTEGRATION.md)
 
-- 切换到 ONNX Runtime（AMD GPU 兼容）
-- 推理速度提升 6.3 倍（76ms → 12ms）
+### 2025-10-15: 深度图闪烁修复 🔧
+- ✅ EMA时间平滑算法
+- ✅ 深度可视化持久化
+- ✅ 检测深度采样优化
+
+### 2025-10-11: AMD 780M 性能优化 🚀
+- ✅ FPS 从 13 提升到 45-80（3.5-6倍提升）
+- ✅ ONNX Runtime GPU 加速
 - 详见：[QUICKSTART_AMD780M.md](QUICKSTART_AMD780M.md)
 
 ## 项目概述
 
-本项目使用Berxel 3D相机和YOLOv8模型实现实时人形检测和深度测量功能。针对 AMD 780M 集成显卡进行了深度优化。
+本项目是卓越RM机器人的**视觉与导航系统**，集成了人员检测、深度SLAM避障和导航决策功能。基于Berxel P100R 3D相机，使用YOLOv8进行目标检测，结合深度SLAM实现智能导航。
 
 ## 主要功能
 
-- 🎥 Berxel 3D相机接口
+### 视觉检测
+- 🎥 Berxel P100R 3D相机接口
 - 🤖 YOLOv8人形检测（**ONNX Runtime加速**）
-- 📏 深度信息获取
-- 🖼️ 彩色图像和深度图像实时显示
-- ✅ 人形验证（宽高比、面积、置信度）
+- 📏 实时深度测量与距离标注
+- 🖼️ 深度图平滑与可视化
+- ✅ 人形特征验证
+
+### SLAM导航 🆕
+- 🗺️ **实时障碍物检测与分割**
+- 🎯 **可导航区域分析**
+- 🧭 **智能导航决策**
+- 📊 **性能监控与统计**
+- 🎨 **双窗口实时可视化**
+
+### 性能优化
 - 🚀 **AMD 780M 优化（45-80 FPS）**
+- ⚡ **SLAM处理（348 FPS）**
+- 🔧 **深度图平滑（EMA算法）**
 
 ## 文件结构
 
 ```
 ros2-robt/
-├── berxel_camera.py       # Berxel相机Python接口
-├── berxel_wrapper.cpp     # Berxel SDK C++包装器
-├── person_detect.py       # 主检测程序
-├── test_components.py     # 组件测试脚本
-├── test_berxel_camera.py  # 相机测试脚本
-└── setup.py              # 编译配置
+├── berxel_camera.py              # Berxel相机Python接口
+├── berxel_wrapper.cpp            # Berxel SDK C++包装器
+├── person_detect.py              # 人员检测（已优化）
+├── person_detect_slam.py         # 🆕 人员检测+SLAM集成
+├── depth_slam_obstacle.py        # 🆕 SLAM核心算法
+├── test_slam_module.py           # 🆕 SLAM模块测试
+├── test_components.py            # 组件测试脚本
+├── test_berxel_camera.py         # 相机测试脚本
+├── setup.py                      # 编译配置
+├── SLAM_INTEGRATION.md           # 🆕 SLAM集成说明
+└── SLAM_INTEGRATION_COMPLETE.md  # 🆕 集成完成报告
 ```
 
 ## 依赖项
@@ -40,10 +70,46 @@ ros2-robt/
 - Python 3.10+
 - OpenCV
 - NumPy
+- SciPy (SLAM模块)
 - **ONNX Runtime**（优化版本）
 - Berxel SDK
 
-## 快速开始（AMD 780M 优化版本）
+## 快速开始
+
+### 方式一：运行集成系统（推荐）🆕
+
+```bash
+# 1. 激活虚拟环境
+source .venv/bin/activate
+
+# 2. 运行人员检测+SLAM导航系统
+python person_detect_slam.py
+
+# 控制键:
+# q - 退出
+# s - 截图
+# p - 暂停/继续
+# d - 切换SLAM显示
+```
+
+### 方式二：运行人员检测（原版）
+
+```bash
+# 运行优化版检测程序
+python person_detect.py
+```
+
+### 方式三：测试SLAM模块
+
+```bash
+# 基础测试
+python test_slam_module.py --mode basic
+
+# 压力测试
+python test_slam_module.py --mode stress
+```
+
+## AMD 780M 优化版本（旧版快速开始）
 
 ### 1. 安装依赖
 ```bash
