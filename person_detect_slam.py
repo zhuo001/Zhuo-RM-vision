@@ -55,7 +55,7 @@ else:
     print("ℹ️ Using CPUExecutionProvider (optimized for x86)")
 
 # 加载 ONNX 模型
-onnx_model_path = 'yolov8n.onnx'
+onnx_model_path = 'yolo12n.onnx'
 session = ort.InferenceSession(onnx_model_path, providers=providers)
 
 # 获取输入输出信息

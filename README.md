@@ -1,8 +1,14 @@
 # Zhuo-RM
 
-ROS2机器人视觉与导航项目 - 基于Berxel相机、YOLOv8检测与深度SLAM导航
+ROS2机器人视觉与导航项目 - 基于Berxel相机、YOLOv12检测与深度SLAM导航
 
 ## 🎉 最新更新
+
+### 2025-12-15: 模型升级至 YOLOv12 🚀
+**✅ 检测模型全面升级！**
+- ✅ 升级至 YOLOv12 Nano 模型 (`yolo12n.onnx`)
+- ✅ 保持 ONNX Runtime 加速支持
+- ✅ 更高的检测精度与速度平衡
 
 ### 2025-12-15: Unitree L2 LiDAR 集成完成 🎯
 **✅ 3D LiDAR 点云可视化系统上线！**
@@ -34,13 +40,13 @@ ROS2机器人视觉与导航项目 - 基于Berxel相机、YOLOv8检测与深度S
 
 ## 项目概述
 
-本项目是卓越RM机器人的**视觉与导航系统**，集成了人员检测、深度SLAM避障和导航决策功能。基于Berxel P100R 3D相机，使用YOLOv8进行目标检测，结合深度SLAM实现智能导航。
+本项目是卓越RM机器人的**视觉与导航系统**，集成了人员检测、深度SLAM避障和导航决策功能。基于Berxel P100R 3D相机，使用YOLOv12进行目标检测，结合深度SLAM实现智能导航。
 
 ## 主要功能
 
 ### 视觉检测
 - 🎥 Berxel P100R 3D相机接口
-- 🤖 YOLOv8人形检测（**ONNX Runtime加速**）
+- 🤖 YOLOv12人形检测（**ONNX Runtime加速**）
 - 📏 实时深度测量与距离标注
 - 🖼️ 深度图平滑与可视化
 - ✅ 人形特征验证
@@ -129,7 +135,7 @@ python person_detect_slam.py
 ```
 
 **显示窗口**：
-- 左侧：YOLOv8 人员检测 + RGB
+- 左侧：YOLOv12 人员检测 + RGB
 - 中间：深度图 + SLAM 导航可视化
 - 右侧：LiDAR 点云鸟瞰图（±20m）
 
