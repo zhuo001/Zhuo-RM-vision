@@ -18,6 +18,11 @@ import numpy as np
 import time
 import onnxruntime as ort
 import sys
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import PointCloud2
+import threading
+import struct
 
 from berxel_camera import BerxelCamera
 from depth_slam_obstacle import DepthSLAMObstacleDetector
@@ -78,6 +83,35 @@ DEPTH_VIS_KEEP_FRAMES = 5
 SLAM_DEPTH_THRESHOLD_NEAR = 0.8  # 近距离障碍物阈值(米)
 SLAM_DEPTH_THRESHOLD_FAR = 5.0   # 远距离阈值(米)
 
+class LidarMonitor(Node):
+    def __init__(self):
+        super().__init__('lidar_monitor')
+        self.subscription = self.create_subscription(
+            PointCloud2,
+            '/unilidar/cloud',
+            self.lidar_callback,
+            10)
+        self.lidar_data = None
+        self.lock = threading.Lock()
+        self.point_count = 0
+        print("LiDAR Monitor initialized, waiting for data...")
+
+    def lidar_callback(self, msg):
+        with self.lock:
+            self.lidar_data = msg
+            self.point_count = msg.width * msg.height
+            # print(f"Received LiDAR data: {self.point_count} points")
+
+    def get_latest_cloud(self):
+        with self.lock:
+            return self.lidar_data, self.point_count
+
+def start_lidar_monitor():
+    rclpy.init()
+    lidar_monitor = LidarMonitor()
+    thread = threading.Thread(target=rclpy.spin, args=(lidar_monitor,), daemon=True)
+    thread.start()
+    return lidar_monitor
 
 def initialize_camera():
     try:
@@ -206,6 +240,89 @@ def get_depth_at_point(depth_map, x, y, window_size=5):
     return float(depth_value)
 
 
+def pointcloud2_to_birdview(cloud_msg, width=400, height=400, resolution=0.02, debug_counter=[0]):
+    """将 PointCloud2 转换为鸟瞰图"""
+    if cloud_msg is None:
+        birdview = np.zeros((height, width, 3), dtype=np.uint8)
+        cv2.putText(birdview, "No LiDAR Data", (10, height//2),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+        return birdview
+    
+    # 创建鸟瞰图画布
+    birdview = np.zeros((height, width, 3), dtype=np.uint8)
+    
+    try:
+        # 解析 PointCloud2 数据
+        point_step = cloud_msg.point_step
+        data = cloud_msg.data
+        
+        debug_counter[0] += 1
+        
+        # 根据 point_step 自动识别格式
+        points = []
+        total_points = len(data) // point_step
+        
+        for i in range(0, min(len(data), total_points * point_step), point_step):
+            if i + 12 <= len(data):  # 至少需要 x,y,z
+                try:
+                    x = struct.unpack('f', bytes(data[i:i+4]))[0]
+                    y = struct.unpack('f', bytes(data[i+4:i+8]))[0]
+                    z = struct.unpack('f', bytes(data[i+8:i+12]))[0]
+                    
+                    # 过滤无效点和超出范围的点
+                    if not (np.isnan(x) or np.isnan(y) or np.isnan(z) or np.isinf(x) or np.isinf(y) or np.isinf(z)):
+                        if abs(x) < 20 and abs(y) < 20 and z > -5 and z < 5:  # 扩大范围
+                            points.append((x, y, z))
+                except:
+                    continue
+        
+        # 每 30 帧打印一次调试信息
+        if debug_counter[0] % 30 == 0:
+            print(f"LiDAR Debug: Total {total_points} points, Valid {len(points)} points, Step {point_step}")
+        
+        # 绘制点云到鸟瞰图
+        for x, y, z in points:
+            # 转换到图像坐标 (中心在图像下方，前方向上)
+            img_x = int(width / 2 + y / resolution)  # y对应图像x
+            img_y = int(height - x / resolution - 20)  # x对应图像y (前方向上)
+            
+            if 0 <= img_x < width and 0 <= img_y < height:
+                # 根据高度着色
+                if z < -0.2:
+                    color = (0, 0, 255)  # 低于地面 - 红色
+                elif z > 0.5:
+                    color = (255, 255, 0)  # 高于半米 - 黄色
+                else:
+                    color = (0, 255, 0)  # 正常 - 绿色
+                cv2.circle(birdview, (img_x, img_y), 2, color, -1)
+        
+        # 绘制机器人位置（图像下方中心）
+        robot_x, robot_y = width//2, height - 10
+        cv2.circle(birdview, (robot_x, robot_y), 5, (255, 0, 255), -1)
+        cv2.circle(birdview, (robot_x, robot_y), 10, (255, 0, 255), 1)
+        
+        # 绘制方向指示线
+        cv2.arrowedLine(birdview, (robot_x, robot_y), (robot_x, robot_y-30), (255, 0, 255), 2)
+        
+        # 添加文本信息
+        cv2.putText(birdview, f"Points: {len(points)}", (10, 20),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        cv2.putText(birdview, "LiDAR BirdView", (10, height-10),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+        cv2.putText(birdview, f"{resolution*width:.1f}m x {resolution*height:.1f}m", (width-150, height-10),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+        
+    except Exception as e:
+        if debug_counter[0] % 30 == 1:
+            print(f"点云转换错误: {e}")
+            import traceback
+            traceback.print_exc()
+        cv2.putText(birdview, "PointCloud Error", (10, height//2),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+    
+    return birdview
+
+
 def main():
     """主函数：集成人员检测与SLAM导航"""
     cap = None
@@ -218,6 +335,15 @@ def main():
         print("\n[1/3] 初始化Berxel相机...")
         cap = initialize_camera()
         print("✅ 相机初始化成功")
+
+        # 初始化LiDAR监听
+        print("\n[1.5/3] 初始化LiDAR监听...")
+        lidar_monitor = None
+        try:
+            lidar_monitor = start_lidar_monitor()
+            print("✅ LiDAR监听已启动")
+        except Exception as e:
+            print(f"⚠️ LiDAR监听启动失败: {e}")
         
         # 初始化SLAM检测器
         print("\n[2/3] 初始化SLAM避障系统...")
@@ -277,8 +403,8 @@ def main():
             
             h, w = frame.shape[:2]
             
-            # 创建显示画布（左：检测 | 右：SLAM）
-            display = np.zeros((h, w*2, 3), dtype=np.uint8)
+            # 创建显示画布（左：检测 | 中：深度/SLAM | 右：点云）
+            display = np.zeros((h, w*3, 3), dtype=np.uint8)
             display[:, :w] = frame.copy()
             
             frame_count += 1
@@ -334,12 +460,12 @@ def main():
                                 depth_color = slam.visualize(depth_meters, obstacle_mask, 
                                                             slam_info, depth_color)
                             
-                            display[:, w:] = depth_color
+                            display[:, w:w*2] = depth_color
                             last_depth_color = depth_color.copy()
                             last_depth_raw = depth_resized.copy()
                             last_depth_keep_counter = 0
                     else:
-                        display[:, w:] = 0
+                        display[:, w:w*2] = 0
                         
                 except Exception as e:
                     print(f"深度/SLAM处理错误: {e}")
@@ -347,11 +473,21 @@ def main():
             else:
                 # 重用上一帧深度可视化
                 if last_depth_color is not None and last_depth_keep_counter < DEPTH_VIS_KEEP_FRAMES:
-                    display[:, w:] = last_depth_color
+                    display[:, w:w*2] = last_depth_color
                     last_depth_keep_counter += 1
                     depth_resized = last_depth_raw
                 else:
-                    display[:, w:] = 0
+                    display[:, w:w*2] = 0
+            
+            # ========== LiDAR 点云显示 ==========
+            if lidar_monitor is not None:
+                cloud_msg, point_count = lidar_monitor.get_latest_cloud()
+                lidar_birdview = pointcloud2_to_birdview(cloud_msg, width=w, height=h)
+                display[:, w*2:w*3] = lidar_birdview
+            else:
+                display[:, w*2:w*3] = 0
+                cv2.putText(display, "No LiDAR", (w*2+10, h//2),
+                           cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
             
             # ========== YOLO人员检测 ==========
             try:
@@ -397,7 +533,7 @@ def main():
                         cv2.drawMarker(display, (center_x, center_y),
                                      (0, 0, 255), cv2.MARKER_CROSS, 10, 2)
                         
-                        # 在右侧也绘制
+                        # 在中间列也绘制
                         cv2.rectangle(display, (w+x1, y1), (w+x2, y2), (0, 255, 0), 2)
                         cv2.drawMarker(display, (w+center_x, center_y),
                                      (0, 0, 255), cv2.MARKER_CROSS, 10, 2)
@@ -432,10 +568,13 @@ def main():
                 cv2.putText(display, "SLAM Navigation" if show_slam else "Depth Only", 
                           (w + w//2-100, h-20),
                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+                cv2.putText(display, "LiDAR PointCloud", 
+                          (w*2 + w//2-100, h-20),
+                          cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
                 
                 # 缩放显示
                 display_h = int(h * DISPLAY_SCALE)
-                display_w = int(w * 2 * DISPLAY_SCALE)
+                display_w = int(w * 3 * DISPLAY_SCALE)
                 display_resized = cv2.resize(display, (display_w, display_h))
                 
                 cv2.imshow('Person Detection + SLAM Navigation', display_resized)
