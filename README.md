@@ -118,7 +118,7 @@ ros2 run unitree_lidar_ros2 unitree_lidar_ros2_node \
   --ros-args \
   -p initialize_type:=2 \
   -p work_mode:=1 \
-  -p lidar_ip:="192.168.1.62" \
+  -p lidar_ip:="192.168.1.1" \
   -p local_ip:="192.168.1.2" \
   -p lidar_port:=6101 \
   -p local_port:=6201
@@ -246,7 +246,7 @@ python3 person_detect.py
 ### Unitree L2 LiDAR 运行参数
 - `initialize_type`: 2（标准初始化）
 - `work_mode`: **1**（关键！默认0会导致立即退出）
-- `lidar_ip`: 192.168.1.62（LiDAR固定IP）
+- `lidar_ip`: 192.168.1.1（LiDAR固定IP）
 - `local_ip`: 192.168.1.2（本机需配置为此IP）
 - `lidar_port`: 6101（LiDAR数据端口）
 - `local_port`: 6201（本机接收端口）
@@ -303,7 +303,7 @@ ros2 topic list | grep unilidar
 ros2 topic hz /unilidar/cloud
 
 # 3. 检查网络连接
-ping 192.168.1.62
+ping 192.168.1.1
 python3 test_udp.py  # 监听UDP数据包
 
 # 4. 查看 person_detect_slam.py 调试输出

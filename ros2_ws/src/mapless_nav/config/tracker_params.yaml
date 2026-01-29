@@ -1,0 +1,67 @@
+# =============================================================================
+# Target Tracker Node Configuration
+# =============================================================================
+
+target_tracker_node:
+  ros__parameters:
+    # YOLO Model
+    model_path: "/home/zhuo-skadi/Documents/ros2-robt/yolo12n.onnx"
+    input_size: 416
+    conf_thresh: 0.3
+    nms_thresh: 0.45
+    target_classes: [0]  # 0 = person (COCO)
+    
+    # Input topics
+    image_topic: "/berxel/color/image_raw"
+    depth_topic: "/berxel/depth/image_raw"
+    camera_info_topic: "/berxel/depth/camera_info"
+    
+    # ByteTrack parameters
+    track_thresh: 0.5      # High confidence threshold for tracking
+    track_buffer: 30       # Frames to keep lost tracks
+    match_thresh: 0.8      # IoU threshold for matching
+    
+    # Output options
+    publish_visualization: true
+    publish_markers: true
+
+
+# =============================================================================
+# Following Controller Node Configuration
+# =============================================================================
+
+following_controller_node:
+  ros__parameters:
+    # Distance parameters
+    target_distance: 1.5   # Desired following distance (meters)
+    min_distance: 0.8      # Stop if closer (meters)
+    max_distance: 5.0      # Consider lost if further (meters)
+    lost_timeout: 3.0      # Seconds before declaring target lost
+    
+    # Velocity limits
+    max_linear_vel: 0.5    # m/s
+    max_angular_vel: 1.0   # rad/s
+    linear_accel: 0.3      # m/s^2
+    angular_accel: 1.0     # rad/s^2
+    
+    # PID parameters for linear velocity
+    linear_kp: 0.8
+    linear_ki: 0.0
+    linear_kd: 0.2
+    
+    # PID parameters for angular velocity
+    angular_kp: 1.2
+    angular_ki: 0.0
+    angular_kd: 0.3
+    
+    # Obstacle avoidance
+    obstacle_threshold: 0.4  # meters
+    
+    # Nav2 integration (set true to use Nav2 for navigation)
+    use_nav2: false
+    
+    # Topics
+    target_topic: "/target_tracker/primary_target"
+    cmd_vel_topic: "/cmd_vel"
+    odom_topic: "/odom"
+    scan_topic: "/scan"

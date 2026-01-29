@@ -34,7 +34,7 @@ def test_params(init_type, work_mode):
         "--ros-args",
         "-p", f"initialize_type:={init_type}",
         "-p", f"work_mode:={work_mode}",
-        "-p", "lidar_ip:=192.168.1.62",
+        "-p", "lidar_ip:=192.168.1.1",
         "-p", "local_ip:=192.168.1.2",
         "-p", "lidar_port:=6101",
         "-p", "local_port:=6201"
