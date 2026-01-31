@@ -5,7 +5,7 @@
 pointcloud_fusion_node:
   ros__parameters:
     # Input topics
-    l2_topic: "/unitree_l2/pointcloud"
+    l2_topic: "/unilidar/cloud"
     mid70_topic: "/livox/lidar"
     depth_pc_topic: "/berxel/depth/points"
     

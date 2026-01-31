@@ -123,9 +123,9 @@ local_costmap:
       # CRITICAL: Rolling window mode for mapless navigation
       rolling_window: true
       
-      # Costmap size (meters)
-      width: 10.0
-      height: 10.0
+      # Costmap size (meters) - MUST be integer for Nav2 Humble
+      width: 10
+      height: 10
       resolution: 0.05
       
       # Robot footprint (circular approximation)
@@ -142,6 +142,10 @@ local_costmap:
       voxel_layer:
         plugin: "nav2_costmap_2d::VoxelLayer"
         enabled: true
+        
+        # CRITICAL: Transform tolerance for sensor data
+        # Increased to 3.0 seconds to handle L2 LiDAR timestamp issues
+        transform_tolerance: 3.0
         
         # Footprint clearing
         footprint_clearing_enabled: true
@@ -187,9 +191,9 @@ local_costmap:
         
         # Unitree L2 (backup/direct)
         l2_scan:
-          topic: /unitree_l2/pointcloud
+          topic: /unilidar/cloud
           data_type: "PointCloud2"
-          sensor_frame: "unitree_l2_link"
+          sensor_frame: "unilidar_lidar"
           marking: true
           clearing: true
           min_obstacle_height: 0.1
@@ -258,8 +262,8 @@ global_costmap:
       
       # For mapless: use rolling window as global costmap too
       rolling_window: true
-      width: 20.0
-      height: 20.0
+      width: 20
+      height: 20
       resolution: 0.1
       
       robot_radius: 0.3

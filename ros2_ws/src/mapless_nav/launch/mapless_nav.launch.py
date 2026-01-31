@@ -108,6 +108,15 @@ def generate_launch_description():
     # ==========================================================================
     # Static TF Publishers for sensor frames
     # ==========================================================================
+    # Fake Odom (for testing without real odometry)
+    fake_odom_node = Node(
+        package='mapless_nav',
+        executable='fake_odom_node.py',
+        name='fake_odom_node',
+        output='screen',
+        parameters=[{'use_sim_time': use_sim_time}]
+    )
+    
     # Base to Mid-70 (forward, slightly elevated)
     tf_base_to_mid70 = Node(
         package='tf2_ros',
@@ -121,7 +130,7 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         name='tf_base_to_l2',
-        arguments=['0', '0', '0.5', '0', '0', '0', 'base_link', 'unitree_l2_link']
+        arguments=['0', '0', '0.5', '0', '0', '0', 'base_link', 'unilidar_lidar']
     )
     
     # Base to Berxel camera (front, angled down slightly)
@@ -181,6 +190,9 @@ def generate_launch_description():
         declare_use_nav2,
         declare_enable_following,
         declare_enable_visualization,
+        
+        # Fake Odom (for testing)
+        fake_odom_node,
         
         # TF
         tf_base_to_mid70,

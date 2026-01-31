@@ -102,6 +102,7 @@ ament_python_install_package(${PROJECT_NAME})
 install(PROGRAMS
   scripts/target_tracker_node.py
   scripts/following_controller_node.py
+  scripts/fake_odom_node.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

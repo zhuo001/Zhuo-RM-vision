@@ -1,0 +1,8 @@
+digraph G {
+"unilidar_imu_initial" -> "unilidar_imu"[label=" Broadcaster: default_authority\nAverage rate: 998.712\nBuffer length: 5.014\nMost recent transform: 1769750467.04585\nOldest transform: 1769750462.031392\n"];
+"unilidar_imu" -> "unilidar_lidar"[label=" Broadcaster: default_authority\nAverage rate: 998.712\nBuffer length: 5.014\nMost recent transform: 1769750467.04585\nOldest transform: 1769750462.031392\n"];
+edge [style=invis];
+ subgraph cluster_legend { style=bold; color=black; label ="view_frames Result";
+"Recorded at time: 1769750467.049718"[ shape=plaintext ] ;
+}->"unilidar_imu_initial";
+}
